@@ -1,0 +1,567 @@
+{
+  "name": "TrueCopy check and alert",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "TrueCopy check",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Text CSV",
+              "fieldType": "file",
+              "fieldName": "textCsv",
+              "multipleFiles": false,
+              "acceptFileTypes": ".csv",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Facts CSV",
+              "fieldType": "file",
+              "fieldName": "factsCsv",
+              "multipleFiles": false,
+              "acceptFileTypes": ".csv",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "path": "truecopy-check-and-alert"
+        }
+      },
+      "id": "16e2c5c4-acc7-41a0-be6b-01e1bfccff65",
+      "name": "Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -128,
+        0
+      ],
+      "webhookId": "e08a65ce-7d22-4127-90f3-c4ce5bd5f4bc"
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "textCsv",
+        "options": {}
+      },
+      "id": "dbeec512-c8e1-4f72-bfcc-565ae59b2006",
+      "name": "Read text CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "factsCsv",
+        "options": {}
+      },
+      "id": "f589aef9-f4cc-4ef3-b4ba-e7841fd5932d",
+      "name": "Read facts CSV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.2,
+      "position": [
+        96,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": "1"
+      },
+      "id": "99696d26-ecc0-48ca-8c8e-9750aed2ebc3",
+      "name": "Combine CSVs",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        912,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Placeholder: paste your Load facts code here\n// Input items = rows of the text CSV (needs a 'text' column).\n// Facts rows: $('Read facts CSV').all()\nreturn $input.all();"
+      },
+      "id": "c23bb0a9-cc34-4322-8297-54080842cc70",
+      "name": "Load facts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You extract checkable factual claims from product or customer-service text. Do not judge whether claims are true. quote must be copied exactly, character for character, from the text and be as short as possible while containing the claim (for example 100% organic linen, not the whole sentence). attribute must be one of: material, dimensions, weight, color, price, certification, origin, care, return_window, refund_time, dispatch_time, delivery_time, free_shipping, warranty. Map proof, health, safety, eco, award and superlative claims (certified, clinically proven, eco-friendly, best) to certification. type is one of spec, material, price, certification, policy, superlative. productHint is the product name if the text names it, otherwise omit it. Ignore opinions and style (perfect for gifts, beautiful). Skip claims that fit no attribute. If there are none return an empty claims array."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "9154342d-8537-4082-a7d1-ff367d70c8c7",
+      "name": "Extract claims",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        816,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1",
+          "cachedResultName": "gpt-4.1"
+        },
+        "builtInTools": {},
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "09029fdd-9457-4a38-b8c9-2c9e0afc32ec",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        832,
+        336
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "Gateway credits",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"claims\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"quote\": {\n            \"type\": \"string\"\n          },\n          \"productHint\": {\n            \"type\": \"string\"\n          },\n          \"attribute\": {\n            \"type\": \"string\"\n          },\n          \"value\": {\n            \"type\": \"string\"\n          },\n          \"type\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"quote\",\n          \"attribute\",\n          \"value\",\n          \"type\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"claims\"\n  ]\n}"
+      },
+      "id": "64bd653f-7a30-44e8-ac11-1c2ac00cfa8d",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        960,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const facts = $('Read facts CSV').all().map(f => f.json);\nconst texts = $('Load facts').all();\nconst norm = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');\n\nreturn $input.all().map((item, i) => {\n  const claims = (item.json.output && item.json.output.claims) || [];\n  const mismatches = [];\n  for (const c of claims) {\n    const product = c.productHint || 'Store policy';\n    const fact = facts.find(f => norm(f.product) === norm(product) && f.attribute === c.attribute);\n    if (!fact) continue;\n    const claimed = norm(c.value);\n    const truth = norm(fact.value);\n    if (!claimed.includes(truth) && !truth.includes(claimed)) {\n      mismatches.push({ quote: c.quote, attribute: c.attribute, claimed: c.value, fact: fact.value });\n    }\n  }\n  const named = claims.find(c => c.productHint);\n  return {\n    json: {\n      text: texts[i] ? texts[i].json.text : '',\n      productName: named ? named.productHint : 'Store policy',\n      flagged: mismatches.length > 0,\n      mismatches,\n    },\n  };\n});"
+      },
+      "id": "84365d4f-c956-4c42-85d1-9fa1d1b3173c",
+      "name": "Judge",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.flagged }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "04bded49-5b8f-41d1-af12-5af0cf3019b5",
+      "name": "Flagged?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\nreturn $input.all().map(item => {\n  const productName = item.json.productName;\n  const text = item.json.text;\n  const mismatches = item.json.mismatches || [];\n  const rows = mismatches.map(m => '<tr><td>' + esc(m.quote) + '</td><td>' + esc(m.attribute) + '</td><td>' + esc(m.claimed) + '</td><td>' + esc(m.fact) + '</td></tr>').join('');\n  const html = '<p><b>Product:</b> ' + esc(productName) + '</p><p><b>Text:</b> ' + esc(text) + '</p>'\n    + '<table border=\"1\" cellpadding=\"6\" style=\"border-collapse:collapse\"><tr><th>Quote</th><th>Attribute</th><th>Claimed</th><th>Fact</th></tr>' + rows + '</table>'\n    + '<p>Approve to confirm these claims are wrong. Dismiss to ignore this alert.</p>';\n  const plain = mismatches.map(m => '- \"' + m.quote + '\" (' + m.attribute + '): claimed ' + m.claimed + ', fact is ' + m.fact).join('\\n');\n  return {\n    json: {\n      productName,\n      subject: 'TrueCopy alert: ' + mismatches.length + ' wrong claim(s) in ' + productName,\n      html,\n      plain,\n    },\n  };\n});"
+      },
+      "id": "b81eff7f-8c0b-40ae-9011-d320b4f62f74",
+      "name": "Build email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "naveeng4110.sse@saveetha.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "disapproveLabel": "Dismiss"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 3,
+              "resumeUnit": "days"
+            }
+          }
+        }
+      },
+      "id": "f78f55a7-9e5e-4acd-a004-af8173f55860",
+      "name": "Request review",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1888,
+        224
+      ],
+      "webhookId": "e7cf7aed-7951-4fb4-bec0-407c43d71649",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Szw4jRkaNeyacLDJ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "659ac919-28c7-43e2-b822-48826e9d983a",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status-approved",
+              "name": "status",
+              "value": "approved",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "92dd9ff9-9dae-4b29-b108-9c30c723fa40",
+      "name": "Approved",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2336,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "munnaogirala18@gmail.com",
+        "subject": "=Alert dismissed: {{ $('Build email').first().json.productName }}",
+        "emailType": "text",
+        "message": "=The TrueCopy alert was dismissed.\n\nClaims:\n{{ $('Build email').first().json.plain }}",
+        "options": {}
+      },
+      "id": "48eeef32-e5c2-44f3-b1a1-cbad1bf5db7f",
+      "name": "Owner alert dismissed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2336,
+        320
+      ],
+      "webhookId": "4c7567a0-699f-4cbb-ab2b-12ace8805d8a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Szw4jRkaNeyacLDJ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "status-clear",
+              "name": "status",
+              "value": "clear",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c02458ad-ab8c-41ae-bed5-9c574b0a45e4",
+      "name": "All clear",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1776,
+        208
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Form": {
+      "main": [
+        [
+          {
+            "node": "Read text CSV",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read facts CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read text CSV": {
+      "main": [
+        [
+          {
+            "node": "Combine CSVs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read facts CSV": {
+      "main": [
+        [
+          {
+            "node": "Combine CSVs",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine CSVs": {
+      "main": [
+        [
+          {
+            "node": "Load facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load facts": {
+      "main": [
+        [
+          {
+            "node": "Extract claims",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract claims": {
+      "main": [
+        [
+          {
+            "node": "Judge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract claims",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Extract claims",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge": {
+      "main": [
+        [
+          {
+            "node": "Flagged?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flagged?": {
+      "main": [
+        [
+          {
+            "node": "Build email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All clear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build email": {
+      "main": [
+        [
+          {
+            "node": "Request review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Request review": {
+      "main": [
+        [
+          {
+            "node": "Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?": {
+      "main": [
+        [
+          {
+            "node": "Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Owner alert dismissed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "92ad74a5-c5ed-4cc1-bb66-f5b77fed7264",
+  "meta": {
+    "instanceId": "3a45701321debd74e21c56b2ac309251904c37219ed4bd4f830639ea7aa3baeb"
+  },
+  "nodeGroups": [
+    {
+      "id": "ca4e79c5-d4f0-4f9f-b4a9-95e35ad98a9f",
+      "name": "Check claims against facts",
+      "nodeIds": [
+        "99696d26-ecc0-48ca-8c8e-9750aed2ebc3",
+        "c23bb0a9-cc34-4322-8297-54080842cc70",
+        "9154342d-8537-4082-a7d1-ff367d70c8c7",
+        "09029fdd-9457-4a38-b8c9-2c9e0afc32ec",
+        "64bd653f-7a30-44e8-ac11-1c2ac00cfa8d",
+        "84365d4f-c956-4c42-85d1-9fa1d1b3173c"
+      ],
+      "description": "Pairs each uploaded text row with the facts file, pulls out every factual claim, and checks it against your facts"
+    },
+    {
+      "id": "f1ed68ae-47d6-415e-8b14-163f2ff4d5b7",
+      "name": "Owner review",
+      "nodeIds": [
+        "b81eff7f-8c0b-40ae-9011-d320b4f62f74",
+        "f78f55a7-9e5e-4acd-a004-af8173f55860",
+        "659ac919-28c7-43e2-b822-48826e9d983a",
+        "92dd9ff9-9dae-4b29-b108-9c30c723fa40",
+        "48eeef32-e5c2-44f3-b1a1-cbad1bf5db7f"
+      ],
+      "description": "Emails flagged claims for approval, waits up to 3 days, and tells the owner if the alert is dismissed"
+    }
+  ],
+  "id": "QnhNIty5VUJTckDr",
+  "tags": []
+}
